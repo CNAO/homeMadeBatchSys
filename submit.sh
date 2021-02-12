@@ -15,6 +15,12 @@ function myExit(){
 nSubmitted=0
 nCleaned=0
 lDebug=false
+if [ $# -ge 1 ] ; then
+    nCPUs=$1
+else
+    # a default number
+    nCPUs=1
+fi
 echo ""
 echo " starting $0 at `date` ..."
 
@@ -72,7 +78,6 @@ else
 fi
 
 echo " getting how many jobs I can submit..." 
-nCPUs=`grep -v '#' nCPUs.txt | tail -1 | awk '{print ($1)}'`
 let nSubmit=${nCPUs}-${nProcesses}
 if [ ${nSubmit} -gt 0 ] ; then
     [ ${nSubmit} -le ${#waitingJobs[@]} ] || nSubmit=${#waitingJobs[@]}
