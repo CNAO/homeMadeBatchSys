@@ -3,6 +3,10 @@
 # A.Mereghetti, 2021-02-09
 # a very simple queueing system
 # all job files should be named AMQ_YYYY-MM-DD_HH-MM-SS_*.sh
+# the script takes as input argument the number of CPUs allocated
+#    for running jobs. If this is not provided, the script finds
+#    the number of CPUs/cores available on the machine and subtracts
+#    one.
 
 function myExit(){
     echo " ...final balance:"
@@ -19,10 +23,11 @@ if [ $# -ge 1 ] ; then
     nCPUs=$1
 else
     # a default number
-    nCPUs=1
+    nCPUs=`grep -Pc '^processor\t' /proc/cpuinfo`
+    let nCPUs=${nCPUs}-1
 fi
 echo ""
-echo " starting $0 at `date` ..."
+echo " starting $0 at `date` - allocated CPUs: ${nCPUs} ..."
 
 if [ -e stop.submit ] ; then
     echo " ...stop.submit found! exiting istantly..."
