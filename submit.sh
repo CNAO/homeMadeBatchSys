@@ -2,7 +2,7 @@
 
 # A.Mereghetti, 2021-02-09
 # a very simple queueing system
-# all job files should be named job_*.sh
+# all job files should be named *.sh
 # the script takes as input argument the number of CPUs allocated
 #    for running jobs. If this is not provided, the script finds
 #    the number of CPUs/cores available on the machine and subtracts
@@ -21,6 +21,7 @@ nCleaned=0
 nProcesses=0
 lDebug=false
 lRoot=false
+thisScriptName=`basename $0`
 if [ "$USER" == "root" ] ; then
     lRoot=true
 fi
@@ -40,7 +41,7 @@ if [ -e stop.submit ] ; then
 fi
 
 echo " getting running/finished jobs..."
-currJobs=`ls -1 job_*.sh 2>/dev/null`
+currJobs=`ls -1 *.sh 2>/dev/null | grep -v ${thisScriptName}`
 if [ -n "${currJobs}" ] ; then
     currJobs=( ${currJobs} )
     for tmpJob in ${currJobs[@]} ; do
@@ -67,7 +68,7 @@ fi
 
 
 echo " getting waiting jobs..."
-waitingJobs=`ls -1tr queueing/job_*.sh 2>/dev/null`
+waitingJobs=`ls -1tr queueing/*.sh 2>/dev/null`
 if [ -z "${waitingJobs}" ] ; then
     echo " ...no waiting jobs: exiting!"
     myExit 0
