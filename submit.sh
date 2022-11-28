@@ -20,10 +20,10 @@ function myExit(){
 nSubmitted=0
 nCleaned=0
 nProcesses=0
-lDebug=false
+lDebug=true
 lRoot=false
 thisScriptName=`basename $0`
-if [ "$USER" == "root" ] ; then
+if [ `whoami` == "root" ] ; then
     lRoot=true
 fi
 if [ $# -ge 1 ] ; then
@@ -34,7 +34,7 @@ else
     let nCPUs=${nCPUs}-1
 fi
 echo ""
-echo " starting $0 at `date` run as $USER - allocated CPUs: ${nCPUs} ..."
+echo " starting $0 at `date` run as `whoami` - allocated CPUs: ${nCPUs} ..."
 
 if [ -e stop.submit ] ; then
     echo " ...stop.submit found! exiting istantly..."
