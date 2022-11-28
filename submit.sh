@@ -10,8 +10,9 @@
 
 function myExit(){
     echo " ...final balance:"
-    echo "    nSubmitted: ${nSubmitted}"
     echo "    nCleaned: ${nCleaned}"
+    echo "    nProcesses: ${nProcesses}"
+    echo "    nSubmitted: ${nSubmitted}"
     echo " ...ending at `date`."
     exit $1
 }
