@@ -2,7 +2,7 @@
 
 # A.Mereghetti, 2021-02-09
 # a very simple queueing system
-# all job files should be named AMQ_YYYY-MM-DD_HH-MM-SS_*.sh
+# all job files should be named *.sh
 # the script takes as input argument the number of CPUs allocated
 #    for running jobs. If this is not provided, the script finds
 #    the number of CPUs/cores available on the machine and subtracts
@@ -10,15 +10,22 @@
 
 function myExit(){
     echo " ...final balance:"
-    echo "    nSubmitted: ${nSubmitted}"
     echo "    nCleaned: ${nCleaned}"
+    echo "    nProcesses: ${nProcesses}"
+    echo "    nSubmitted: ${nSubmitted}"
     echo " ...ending at `date`."
     exit $1
 }
 
 nSubmitted=0
 nCleaned=0
-lDebug=false
+nProcesses=0
+lDebug=true
+lRoot=false
+thisScriptName=`basename $0`
+if [ `whoami` == "root" ] ; then
+    lRoot=true
+fi
 if [ $# -ge 1 ] ; then
     nCPUs=$1
 else
@@ -27,29 +34,15 @@ else
     let nCPUs=${nCPUs}-1
 fi
 echo ""
-echo " starting $0 at `date` - allocated CPUs: ${nCPUs} ..."
+echo " starting $0 at `date` run as `whoami` - allocated CPUs: ${nCPUs} ..."
 
 if [ -e stop.submit ] ; then
     echo " ...stop.submit found! exiting istantly..."
     myExit 0
 fi
 
-echo " getting running jobs..."
-runningJobs=`ps aux | grep AMQ | grep -v grep`
-if [ -n "${runningJobs}" ] ; then
-    nProcesses=`echo "${runningJobs}" | wc -l`
-    if ${lDebug} ; then
-        echo " ...jobs already running:"
-        echo "${runningJobs}"
-    fi
-    echo " ...total number of running processes: ${nProcesses};"
-else
-    nProcesses=0
-    echo " ...no running jobs!"
-fi
-
-echo " getting finished jobs..."
-currJobs=`ls -1 AMQ_????-??-??_??-??-??_*.sh 2>/dev/null`
+echo " getting running/finished jobs..."
+currJobs=`ls -1 *.sh 2>/dev/null | grep -v ${thisScriptName}`
 if [ -n "${currJobs}" ] ; then
     currJobs=( ${currJobs} )
     for tmpJob in ${currJobs[@]} ; do
@@ -57,17 +50,26 @@ if [ -n "${currJobs}" ] ; then
             ! ${lDebug} || echo " ...job ${tmpJob} is finished!"
             mv ${tmpJob} ${tmpJob}.log finished/
             let nCleaned=${nCleaned}+1
+        else
+            ! ${lDebug} || echo " ...job ${tmpJob} is still running!"
+            let nProcesses=${nProcesses}+1
         fi
     done
 fi
 if [ ${nCleaned} -eq 0 ] ; then
-    echo " ...no finished job!"
+    echo " ...no finished jobs!"
 else
     echo " ...total number of finished (and cleaned) jobs: ${nCleaned}"
 fi
+if [ ${nProcesses} -eq 0 ] ; then
+    echo " ...no running jobs!"
+else
+    echo " ...total number of running processes: ${nProcesses};"
+fi
+
 
 echo " getting waiting jobs..."
-waitingJobs=`ls -1 queueing/AMQ_????-??-??_??-??-??_*.sh 2>/dev/null`
+waitingJobs=`ls -1tr queueing/*.sh 2>/dev/null`
 if [ -z "${waitingJobs}" ] ; then
     echo " ...no waiting jobs: exiting!"
     myExit 0
@@ -89,9 +91,18 @@ if [ ${nSubmit} -gt 0 ] ; then
     echo " ...submitting ${nSubmit} jobs!"
     for (( jj=0; jj<${nSubmit}; jj++ )) ; do
         tmpFile=${waitingJobs[$jj]}
-        ! ${lDebug} || echo " ...submitting `basename ${tmpFile}`..."
-        mv ${tmpFile} .
-        ./`basename ${tmpFile}` 2>&1 > `basename ${tmpFile}`.log &
+        tmpFileName=`basename ${tmpFile}`
+        ! ${lDebug} || echo " ...submitting `basename ${tmpFileName}`..."
+        if ${lRoot} ; then
+            # root submitting:
+            jobOwner=`stat -c "%U" ${tmpFile}`
+            mv ${tmpFile} .
+            # run the job as the user owning the job file
+            sudo -H -u ${jobOwner} bash -c "./${tmpFileName} 2>&1 > ${tmpFileName}.log" &
+        else
+            mv ${tmpFile} .
+            ./${tmpFileName} 2>&1 > ${tmpFileName}.log &
+        fi
         let nSubmitted=${nSubmitted}+1
     done
 else
