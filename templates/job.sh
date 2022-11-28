@@ -7,10 +7,10 @@ RunFolder=$HOME
 
 # start job
 echo " starting job at `date`..."
-echo " ...running as $USER ..."
 cd ${RunFolder}
 
 # run
+echo " ...running in $PWD as $USER ..." 
 for ((ii=1;ii<=1200;ii++)); do
     echo "Hello world! ${ii}"
     sleep 1
