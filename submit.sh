@@ -19,6 +19,10 @@ function myExit(){
 nSubmitted=0
 nCleaned=0
 lDebug=false
+lRoot=false
+if [ "$USER" == "root" ] ; then
+    lRoot=true
+fi
 if [ $# -ge 1 ] ; then
     nCPUs=$1
 else
@@ -27,7 +31,7 @@ else
     let nCPUs=${nCPUs}-1
 fi
 echo ""
-echo " starting $0 at `date` - allocated CPUs: ${nCPUs} ..."
+echo " starting $0 at `date` run as $USER - allocated CPUs: ${nCPUs} ..."
 
 if [ -e stop.submit ] ; then
     echo " ...stop.submit found! exiting istantly..."
@@ -89,9 +93,18 @@ if [ ${nSubmit} -gt 0 ] ; then
     echo " ...submitting ${nSubmit} jobs!"
     for (( jj=0; jj<${nSubmit}; jj++ )) ; do
         tmpFile=${waitingJobs[$jj]}
-        ! ${lDebug} || echo " ...submitting `basename ${tmpFile}`..."
-        mv ${tmpFile} .
-        ./`basename ${tmpFile}` 2>&1 > `basename ${tmpFile}`.log &
+        tmpFileName=`basename ${tmpFile}`
+        ! ${lDebug} || echo " ...submitting `basename ${tmpFileName}`..."
+        if ${lRoot} ; then
+            # root submitting:
+            jobOwner=`stat -c "%U" ${tmpFile}`
+            mv ${tmpFile} .
+            # run the job as the user owning the job file
+            sudo -H -u ${jobOwner} bash -c "./${tmpFileName} 2>&1 > ${tmpFileName}.log" &
+        else
+            mv ${tmpFile} .
+            ./${tmpFileName} 2>&1 > ${tmpFileName}.log &
+        fi
         let nSubmitted=${nSubmitted}+1
     done
 else
