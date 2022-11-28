@@ -23,7 +23,8 @@ You can take inspiration from the examples in the `templates` folder.
 It is extremely important that:
 * every job script has a unique name - e.g. `job_myCase_with_this_parameter_and_that_parameter_2022-11-09.sh`;
 * the job script is executable. In linux, you can make a file executable via the command `chmod`;
-* in the job script, you declare all the necessary environment variables, including where the job should run, and you `cd` there;
+* in the job script, you declare all the necessary environment variables, including where the job should run (hereafter referred to as ''running folder'');
+* please `cd` into the running folder, such that all the files written by the simulation (with the only exception of the job log, see later) can be found there.
 
 ### Actual submission
 In order to submit a job, it is sufficient to copy the job script in the `queueing` folder.
