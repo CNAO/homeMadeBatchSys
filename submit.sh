@@ -2,7 +2,7 @@
 
 # A.Mereghetti, 2021-02-09
 # a very simple queueing system
-# all job files should be named AMQ_YYYY-MM-DD_HH-MM-SS_*.sh
+# all job files should be named job_*.sh
 # the script takes as input argument the number of CPUs allocated
 #    for running jobs. If this is not provided, the script finds
 #    the number of CPUs/cores available on the machine and subtracts
@@ -39,7 +39,7 @@ if [ -e stop.submit ] ; then
 fi
 
 echo " getting running jobs..."
-runningJobs=`ps aux | grep AMQ | grep -v grep`
+runningJobs=`ps aux | grep job_ | grep -v grep`
 if [ -n "${runningJobs}" ] ; then
     nProcesses=`echo "${runningJobs}" | wc -l`
     if ${lDebug} ; then
@@ -53,7 +53,7 @@ else
 fi
 
 echo " getting finished jobs..."
-currJobs=`ls -1 AMQ_????-??-??_??-??-??_*.sh 2>/dev/null`
+currJobs=`ls -1 job_*.sh 2>/dev/null`
 if [ -n "${currJobs}" ] ; then
     currJobs=( ${currJobs} )
     for tmpJob in ${currJobs[@]} ; do
@@ -71,7 +71,7 @@ else
 fi
 
 echo " getting waiting jobs..."
-waitingJobs=`ls -1 queueing/AMQ_????-??-??_??-??-??_*.sh 2>/dev/null`
+waitingJobs=`ls -1tr queueing/job_*.sh 2>/dev/null`
 if [ -z "${waitingJobs}" ] ; then
     echo " ...no waiting jobs: exiting!"
     myExit 0
