@@ -18,6 +18,7 @@ function myExit(){
 
 nSubmitted=0
 nCleaned=0
+nProcesses=0
 lDebug=false
 lRoot=false
 if [ "$USER" == "root" ] ; then
@@ -38,21 +39,7 @@ if [ -e stop.submit ] ; then
     myExit 0
 fi
 
-echo " getting running jobs..."
-runningJobs=`ps aux | grep job_ | grep -v grep`
-if [ -n "${runningJobs}" ] ; then
-    nProcesses=`echo "${runningJobs}" | wc -l`
-    if ${lDebug} ; then
-        echo " ...jobs already running:"
-        echo "${runningJobs}"
-    fi
-    echo " ...total number of running processes: ${nProcesses};"
-else
-    nProcesses=0
-    echo " ...no running jobs!"
-fi
-
-echo " getting finished jobs..."
+echo " getting running/finished jobs..."
 currJobs=`ls -1 job_*.sh 2>/dev/null`
 if [ -n "${currJobs}" ] ; then
     currJobs=( ${currJobs} )
@@ -61,14 +48,23 @@ if [ -n "${currJobs}" ] ; then
             ! ${lDebug} || echo " ...job ${tmpJob} is finished!"
             mv ${tmpJob} ${tmpJob}.log finished/
             let nCleaned=${nCleaned}+1
+        else
+            ! ${lDebug} || echo " ...job ${tmpJob} is still running!"
+            let nProcesses=${nProcesses}+1
         fi
     done
 fi
 if [ ${nCleaned} -eq 0 ] ; then
-    echo " ...no finished job!"
+    echo " ...no finished jobs!"
 else
     echo " ...total number of finished (and cleaned) jobs: ${nCleaned}"
 fi
+if [ ${nProcesses} -eq 0 ] ; then
+    echo " ...no running jobs!"
+else
+    echo " ...total number of running processes: ${nProcesses};"
+fi
+
 
 echo " getting waiting jobs..."
 waitingJobs=`ls -1tr queueing/job_*.sh 2>/dev/null`
