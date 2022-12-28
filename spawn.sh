@@ -1,21 +1,19 @@
 #!/bin/bash
 
-caseDir=BP164mm_parallel_0p000_0p000
-origDir=FLUKA_repo
-inputFile=treat_line_exp.inp
-jobFile=job.sh
-analScript=analysis.sh
-nPrims=200000
+caseDir=C_W
+origDir=.
+inputFile=XPRcolli.inp
+jobFile=job_FLUKA.sh
+nPrims=3000000
 seedMin=1
-seedMax=5
+seedMax=10
 # what to do
-lPrepare=false
-lSubmit=false
-lAnalise=true
+lPrepare=true
+lSubmit=true
 lClean=false
 # hand-made queueing system
 lQueue=true
-spoolingPath=/home/amereghe/homeMadeBatchSys/queueing
+spoolingPath=/mnt/DATA/homeMadeBatchSys/queueing
 
 currDir=$PWD
 # use "." as floating-point separator
@@ -31,7 +29,7 @@ if ${lPrepare} ; then
     fi
     # copy files
     cd ${origDir}
-    cp ${inputFile} ${jobFile} ${analScript} ${currDir}/${caseDir}
+    cp ${inputFile} ${jobFile} ${currDir}/${caseDir}
     cd - > /dev/null 2>&1
     cd ${caseDir}
     # final steps of preparation (a folder per seed)
@@ -58,7 +56,7 @@ if ${lSubmit} ; then
         echo " ...submitting seed ${iSeed}..."
         dirNum=`printf "run_%05i" "${iSeed}"`
         if ${lQueue} ; then
-            currJobFile=AMQ_`date "+%Y-%m-%d_%H-%M-%S"`_${caseDir}_${dirNum}.sh
+            currJobFile=job_${caseDir}_${dirNum}_`date "+%Y-%m-%d_%H-%M-%S"`.sh
             cat > ${currJobFile} <<EOF
 #!/bin/bash
 cd ${PWD}/${caseDir}/${dirNum}
@@ -72,19 +70,6 @@ EOF
             cd - > /dev/null 2>&1
         fi
     done
-fi
-
-if ${lAnalise} ; then
-    echo " analysing ${caseDir}..."
-    if [ -d ${caseDir}/analysis ] ; then
-        echo " folder ${caseDir}/analysis already exists! recreating it..."
-        rm -rf ${caseDir}/analysis
-    fi
-    mkdir -p ${caseDir}/analysis
-    [ -e ${caseDir}/analysis/${analScript} ] || mv ${caseDir}/${analScript} ${caseDir}/analysis
-    cd ${caseDir}/analysis
-    ./${analScript}  2>&1 | tee -a analysis.log
-    cd - > /dev/null 2>&1
 fi
 
 if ${lClean} ; then
