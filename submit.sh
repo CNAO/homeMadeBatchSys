@@ -42,7 +42,7 @@ if [ -e stop.submit ] ; then
 fi
 
 echo " getting running/finished jobs..."
-currJobs=`ls -1 *.sh 2>/dev/null | grep -v -e ${thisScriptName} -e spawn.sh`
+currJobs=`ls -1 *.sh 2>/dev/null | grep -v -e ${thisScriptName} -e spawn.sh -e merge.sh`
 if [ -n "${currJobs}" ] ; then
     currJobs=( ${currJobs} )
     for tmpJob in ${currJobs[@]} ; do
