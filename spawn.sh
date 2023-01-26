@@ -10,6 +10,7 @@ seedMax=10
 # what to do
 lPrepare=false
 lSubmit=false
+lStop=true
 lClean=false
 # hand-made queueing system
 lQueue=true
@@ -175,8 +176,8 @@ if ${lPrepare} ; then
     cd ${origDir}
     cp ${inputFile} ${jobFile} ${currDir}/${caseDir}
     cd - > /dev/null 2>&1
-    cd ${caseDir}
     # final steps of preparation (a folder per seed)
+    cd ${caseDir}
     for ((iSeed=${seedMin}; iSeed<=${seedMax}; iSeed++ )) ; do 
         echo " ...preparing seed ${iSeed}..."
         dirNum=`printf "run_%05i" "${iSeed}"`
@@ -214,6 +215,34 @@ EOF
             cd - > /dev/null 2>&1
         fi
     done
+fi
+
+if ${lStop} ; then
+    # gently stop FLUKA simulations
+    echo " gently stopping all running jobs of study ${caseDir} ..."
+    if [ ! -d ${caseDir} ] ; then
+        echo " ...study folder ${caseDir} does not exists! is it spelled correctly?"
+        exit 1
+    fi
+    # touch rfluka.stop in all the fluka_* folders
+    cd ${caseDir}
+    for ((iSeed=${seedMin}; iSeed<=${seedMax}; iSeed++ )) ; do
+        dirNum=`printf "run_%05i" "${iSeed}"`
+        flukaFolders=`\ls -1d ${dirNum}/fluka*/`
+        if [[ "${flukaFolders}" == "" ]] ; then
+            echo " ...no FLUKA runs to stop for seed ${iSeed}!"
+        else
+            flukaFolders=( ${flukaFolders} )
+            if [ ${#flukaFolders[@]} -gt 1 ] ; then
+                echo " ...stopping ${#flukaFolders[@]} (possible) runs!"
+            fi
+            for flukaFolder in ${flukaFolders[@]} ; do
+                echo " ...stopping run in folder ${flukaFolder} ..."
+                touch ${flukaFolder}/rfluka.stop
+            done
+        fi
+    done
+    cd - > /dev/null 2>&1
 fi
 
 if ${lClean} ; then
