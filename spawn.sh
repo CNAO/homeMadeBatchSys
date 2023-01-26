@@ -1,23 +1,28 @@
 #!/bin/bash
 
-caseDir=C_W
-origDir=.
-inputFile=XPRcolli.inp
-jobFile=job_FLUKA.sh
-nPrims=3000000
-seedMin=1
-seedMax=10
+caseDir=C_W              # -c
+origDir=.                # -o
+inputFile=XPRcolli.inp   # -i
+jobFile=job_FLUKA.sh     # -j
+nPrims=3000000           # -p
+seedMin=1                # -m
+seedMax=10               # -n
 # what to do
-lPrepare=true
-lSubmit=true
-lClean=false
+lPrepare=false           # -P
+lSubmit=false            # -S
+lClean=false             # -C
 # hand-made queueing system
 lQueue=true
 spoolingPath=/mnt/DATA/homeMadeBatchSys/queueing
+# log file
+logFile=.`basename $0`.log
 
 currDir=$PWD
 # use "." as floating-point separator
 export LC_NUMERIC="en_US.UTF-8"
+
+# log terminal line command
+echo "`date +"[%Y-%m-%d %H:%M:%S]"` $0 $*" >> ${logFile}
 
 if ${lPrepare} ; then
     # prepare study dir
