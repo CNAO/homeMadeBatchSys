@@ -10,7 +10,7 @@ seedMax=10
 # what to do
 lPrepare=false
 lSubmit=false
-lStop=true
+lStop=false
 lClean=false
 # hand-made queueing system
 lQueue=true
@@ -38,21 +38,58 @@ how_to_use() {
        script_name=`basename $0`
 cat <<EOF
        ${script_name} [actions] [options]
-       Script for performing repetitive operations on parallel jobs.
+       Script for performing repetitive operations on parallel jobs, i.e.
+         identical simulations different ony by the starting seed.
        For the time being, only for FLUKA simulations.
        Multiple parallel jobs of a single case or group of jobs (cycles) 
-       can be handled: the single case is located in a dedicated folder, 
-       and each parallel job is contained in a dedicated subfolder 
-       (with its own I/O files), e.g.:
-            ./scraper/
-              |_ run_0001/
-              |_ run_0002/
-              |_ run_0003/
+         are handled: the study case is located in a dedicated folder
+         and each parallel job is contained in a dedicated subfolder 
+         (with its own I/O files), e.g.:
+            ./C_Cu/
+              |_ run_00001/
+              |_ run_00002/
+              |_ run_00003/
+       The script should be called for acting on a single study case at
+         a time, no matter the action; the call should be done from the parent
+         folder.
+
        
        actions:
-       -C  clean
-       -P  prepare (set up folders)
-       -S  submit jobs
+       -C  clean    to remove <inputFile>*fort.* files and gzip all
+       	   	      <inputFile>*.out/.err/.log
+                    available options:
+                    -c <caseDir>   (mandatory)
+		    -i <inputFile> (mandatory)
+
+       -P  prepare: to set up study folder, i.e. it creates the study folder,
+                      with a ``master copy'' of the <inputFile> and <jobFile>,
+                      and all the run_????? directories, each different from the
+                      others by the seed.
+                    this action can be used also to add statistics to an existing
+                      study case;
+                    available options:
+                    -c <caseDir>   (mandatory)
+		    -i <inputFile> (mandatory)
+		    -j <jobFile>   (optional)
+		    -m <seedMin>   (optional)
+		    -n <seedMax>   (optional)
+		    -o <origDir>   (optional)
+		    -p <nPrims>    (mandatory)
+
+       -S  submit:  to submit jobs;
+                    available options:
+                    -c <caseDir>   (mandatory)
+		    -m <seedMin>   (optional)
+		    -n <seedMax>   (optional)
+
+       -T  stop:    to gently stop jobs currently running, i.e. giving the
+                      possibility to collect results, by touching rfluka.stop
+                      in the fluka_* folders;
+                    available options:
+                    -c <caseDir>   (mandatory)
+		    -m <seedMin>   (optional)
+		    -n <seedMax>   (optional)
+
 
        options:
 
@@ -64,16 +101,16 @@ cat <<EOF
        -i <inputFile>      FLUKA .inp file (with extenstion)
        	  		   --> NO defaults!
 
-       -j <job_file>       file describing the job to be run
+       -j <jobFile>        file describing the job to be run
        	  		   --> default: ${jobFile};
 
-       -m <min_seed>
+       -m <seedMin>
        	  		   --> default: ${seedMin};
 
-       -n <max_seed>
+       -n <seedMax>
        	  		   --> default: ${seedMax};
 
-       -o <orig_folder>    folder where the master files are stored
+       -o <origDir>        folder where the master files are stored
        	  		   --> NO defaults!
 
        -p <nPrims>         number of primaries
@@ -87,7 +124,7 @@ EOF
 # =================================================================================
 
 # get options
-while getopts  ":Cc:hi:j:m:n:o:Pp:S" opt ; do
+while getopts  ":Cc:hi:j:m:n:o:Pp:ST" opt ; do
   case $opt in
     C)
       lClean=true
@@ -123,6 +160,9 @@ while getopts  ":Cc:hi:j:m:n:o:Pp:S" opt ; do
     S)
       lSubmit=true
       ;;
+    T)
+      lStop=true
+      ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
       exit 1
@@ -136,28 +176,26 @@ done
 # check options
 if ${lPrepare} ; then
     # mandatory options are there
-    if [ -z "${caseDir}" ] ; then die "case NOT declared!" ; fi
     if [ -z "${inputFile}" ] ; then die ".inp file NOT declared!" ; fi
     if [ -z "${nPrims}" ] ; then die "number of primary particles NOT declared!" ; fi
-    if [ -z "${origDir}" ] ; then die "folder with original files NOT declared!" ; fi
     # mandatory options are meaningful
     if [ ! -f ${inputFile} ] ; then die ".inp file does NOT exist!" ; fi
     if [ ! -f ${jobFile} ] ; then die "job file does NOT exist!" ; fi
     if [ ! -d ${origDir} ] ; then die "folder with original files does NOT exist!" ; fi
 fi
 if ${lSubmit} ; then
-    # mandatory options are there
-    if [ -z "${caseDir}" ] ; then die "case NOT declared!" ; fi
-    # mandatory options are meaningful
-    if [ ! -d ${caseDir} ] ; then die "folder with original files does NOT exist!" ; fi
 fi
 if ${lClean} ; then
     # mandatory options are there
-    if [ -z "${caseDir}" ] ; then die "case NOT declared!" ; fi
     if [ -z "${inputFile}" ] ; then die ".inp file NOT declared!" ; fi
-    # mandatory options are meaningful
-    if [ ! -d ${caseDir} ] ; then die "folder with original files does NOT exist!" ; fi
 fi
+if ${lStop} ; then
+fi
+# common options
+# - they are there
+if [ -z "${caseDir}" ] ; then die "case NOT declared!" ; fi
+# - they are meaningful
+if [ ! -d ${caseDir} ] ; then die "folder with original files does NOT exist!" ; fi
 
 
 # =================================================================================
