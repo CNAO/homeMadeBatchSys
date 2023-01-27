@@ -37,6 +37,7 @@ die() {
 how_to_use() {
        script_name=`basename $0`
 cat <<EOF
+
        ${script_name} [actions] [options]
        Script for performing repetitive operations on parallel jobs, i.e.
          identical simulations different ony by the starting seed.
@@ -55,18 +56,24 @@ cat <<EOF
 
        
        actions:
-       -C  clean    to remove <inputFile>*fort.* files and gzip all
+       -C  clean:   to remove <inputFile>*fort.* files and gzip all
        	   	      <inputFile>*.out/.err/.log
                     available options:
                     -c <caseDir>   (mandatory)
 		    -i <inputFile> (mandatory)
 
+		    example: /mnt/DATA/homeMadeBatchSys/spawn.sh -C -c P_W -i XPRcolli.inp
+
+       -H  help:    to print this help
+
+       	   	    example: /mnt/DATA/homeMadeBatchSys/spawn.sh -H
+
        -P  prepare: to set up study folder, i.e. it creates the study folder,
                       with a ``master copy'' of the <inputFile> and <jobFile>,
                       and all the run_????? directories, each different from the
                       others by the seed.
-                    this action can be used also to add statistics to an existing
-                      study case;
+                    this action can be used also to add statistics to an
+                      existing study case;
                     available options:
                     -c <caseDir>   (mandatory)
 		    -i <inputFile> (mandatory)
@@ -96,8 +103,6 @@ cat <<EOF
        -c <caseDir>        sub-folder containing the study case
        	  		   --> NO defaults!
 
-       -h                  print this help
-
        -i <inputFile>      FLUKA .inp file (with extenstion)
        	  		   --> NO defaults!
 
@@ -119,12 +124,12 @@ cat <<EOF
 EOF
 }
 
-# =================================================================================
+# ==============================================================================
 # OPTIONs
-# =================================================================================
+# ==============================================================================
 
 # get options
-while getopts  ":Cc:hi:j:m:n:o:Pp:ST" opt ; do
+while getopts  ":Cc:Hi:j:m:n:o:Pp:ST" opt ; do
   case $opt in
     C)
       lClean=true
@@ -132,7 +137,7 @@ while getopts  ":Cc:hi:j:m:n:o:Pp:ST" opt ; do
     c)
       caseDir=$OPTARG
       ;;
-    h)
+    H)
       how_to_use
       exit
       ;;
@@ -164,12 +169,10 @@ while getopts  ":Cc:hi:j:m:n:o:Pp:ST" opt ; do
       lStop=true
       ;;
     \?)
-      echo "Invalid option: -$OPTARG" >&2
-      exit 1
+      die "Invalid option: -$OPTARG"
       ;;
     :)
-      echo "Option -$OPTARG requires an argument." >&2
-      exit 1
+      die "Option -$OPTARG requires an argument."
       ;;
   esac
 done
@@ -183,24 +186,23 @@ if ${lPrepare} ; then
     if [ ! -f ${jobFile} ] ; then die "job file does NOT exist!" ; fi
     if [ ! -d ${origDir} ] ; then die "folder with original files does NOT exist!" ; fi
 fi
-if ${lSubmit} ; then
-fi
+# if ${lSubmit} ; then
+# fi
 if ${lClean} ; then
     # mandatory options are there
     if [ -z "${inputFile}" ] ; then die ".inp file NOT declared!" ; fi
 fi
-if ${lStop} ; then
-fi
+# if ${lStop} ; then
+# fi
 # common options
 # - they are there
 if [ -z "${caseDir}" ] ; then die "case NOT declared!" ; fi
 # - they are meaningful
 if [ ! -d ${caseDir} ] ; then die "folder with original files does NOT exist!" ; fi
 
-
-# =================================================================================
+# ==============================================================================
 # DO THINGs
-# =================================================================================
+# ==============================================================================
 
 if ${lPrepare} ; then
     # prepare study dir
@@ -291,4 +293,6 @@ if ${lClean} ; then
     for tmpExt in out err log ; do
         find ${caseDir} -name "${inputFile%.inp}???.${tmpExt}" -print -exec gzip {} \;
     done
+    echo " ...removing ran* files in run folders..."
+    find ${caseDir} -name "ran${inputFile%.inp}???" -print -delete
 fi
