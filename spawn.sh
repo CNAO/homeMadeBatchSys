@@ -4,15 +4,17 @@ caseDir=""
 inputFile=""
 jobFile=job_FLUKA.sh
 nPrims=""
+myUnStats=1E6
 origDir=.
 scorings="RESNUCLE,USRBIN,USRBDX,USRTRACK"
 seedMin=1
 seedMax=10
 wherePST="run_%05i"
-whereM="run_?????"
+whereGM="run_?????"
 # what to do
 lPrepare=false
 lSubmit=false
+lGrepStats=false
 lStop=false
 lMerge=false
 lClean=false
@@ -60,86 +62,96 @@ cat <<EOF
 
        
        actions:
-       -C  clean:   to remove <inputFile>*fort.* files and gzip all
-       	   	      <inputFile>*.out/.err/.log
-                    available options:
-                    -c <caseDir>   (mandatory)
-		    -i <inputFile> (mandatory)
+       -C  clean:     to remove <inputFile>*fort.* files and gzip all
+       	   	        <inputFile>*.out/.err/.log
+                      available options:
+                      -c <caseDir>   (mandatory)
+		      -i <inputFile> (mandatory)
 
         example: /mnt/DATA/homeMadeBatchSys/spawn.sh -C -c P_W -i XPRcolli.inp
 
-       -M  merge:   to merge results saved in binary files.
-                    available options:
-                    -c <caseDir>   (mandatory)
-		    -i <inputFile> (mandatory)
-                    -s <scorings>  (optional)
-                    -w <where>     (optional)
+       -G  grep stat: to grep statistics on the jobs already over.
+                      available options:
+                      -c <caseDir>   (mandatory)
+                      -u <myUnStats> (optional)
+                      -w <where>     (optional)
 
-       -H  help:    to print this help
+       -M  merge:     to merge results saved in binary files.
+                      available options:
+                      -c <caseDir>   (mandatory)
+		      -i <inputFile> (mandatory)
+                      -s <scorings>  (optional)
+                      -w <where>     (optional)
+
+       -H  help:      to print this help
 
         example: /mnt/DATA/homeMadeBatchSys/spawn.sh -H
 
-       -P  prepare: to set up study folder, i.e. it creates the study folder,
-                      with a ``master copy'' of the <inputFile> and <jobFile>,
-                      and all the run_????? directories, each different from the
-                      others by the seed.
-                    this action can be used also to add statistics to an
-                      existing study case;
-                    available options:
-                    -c <caseDir>   (mandatory)
-		    -i <inputFile> (mandatory)
-		    -j <jobFile>   (optional)
-		    -m <seedMin>   (optional)
-		    -n <seedMax>   (optional)
-		    -o <origDir>   (optional)
-		    -p <nPrims>    (mandatory)
+       -P  prepare:   to set up study folder, i.e. it creates the study folder,
+                        with a ``master copy'' of the <inputFile> and <jobFile>,
+                        and all the run_????? directories, each different from
+                        the others by the seed.
+                      this action can be used also to add statistics to an
+                        existing study case;
+                      available options:
+                      -c <caseDir>   (mandatory)
+		      -i <inputFile> (mandatory)
+		      -j <jobFile>   (optional)
+		      -m <seedMin>   (optional)
+		      -n <seedMax>   (optional)
+		      -o <origDir>   (optional)
+		      -p <nPrims>    (mandatory)
 
-       -S  submit:  to submit jobs;
-                    available options:
-                    -c <caseDir>   (mandatory)
-		    -m <seedMin>   (optional)
-		    -n <seedMax>   (optional)
+       -S  submit:    to submit jobs;
+                      available options:
+                      -c <caseDir>   (mandatory)
+		      -m <seedMin>   (optional)
+		      -n <seedMax>   (optional)
 
-       -T  stop:    to gently stop jobs currently running, i.e. giving the
-                      possibility to collect results, by touching rfluka.stop
-                      in the fluka_* folders;
-                    available options:
-                    -c <caseDir>   (mandatory)
-		    -m <seedMin>   (optional)
-		    -n <seedMax>   (optional)
+       -T  stop:      to gently stop jobs currently running, i.e. giving the
+                        possibility to collect results, by touching rfluka.stop
+                        in the fluka_* folders;
+                      available options:
+                      -c <caseDir>   (mandatory)
+		      -m <seedMin>   (optional)
+		      -n <seedMax>   (optional)
 
 
        options:
 
-       -c <caseDir>        sub-folder containing the study case
-       	  		   --> NO defaults!
+       -c <caseDir>   sub-folder containing the study case
+       	  	      --> NO defaults!
 
-       -i <inputFile>      FLUKA .inp file (with extenstion)
-       	  		   --> NO defaults!
+       -i <inputFile> FLUKA .inp file (with extenstion)
+       	  	      --> NO defaults!
 
-       -j <jobFile>        file describing the job to be run
-       	  		   --> default: ${jobFile};
+       -j <jobFile>   file describing the job to be run
+       	  	      --> default: ${jobFile};
 
        -m <seedMin>
-       	  		   --> default: ${seedMin};
+       	  	      --> default: ${seedMin};
 
        -n <seedMax>
-       	  		   --> default: ${seedMax};
+       	  	      --> default: ${seedMax};
 
-       -o <origDir>        folder where the master files are stored
-       	  		   --> NO defaults!
+       -o <origDir>   folder where the master files are stored
+       	  	      --> NO defaults!
 
-       -p <nPrims>         number of primaries
-       	  		   --> NO defaults!
+       -p <nPrims>    number of primaries
+       	  	      --> NO defaults!
 
-       -s <scorings>       FLUKA scoring detectors (cards)
-       	  		   --> default: ${scorings[@]};
+       -s <scorings>  FLUKA scoring detectors (cards)
+       	  	      --> default: ${scorings[@]};
 
-       -w <where>          subfolders of the study case
-       	  		   --> default for actions P,S,T: ${wherePST};
-                               format of subfolder names for regexp substitution
-       	  		   --> default for actions M: ${whereM};
-                               format of subfolder names for grepping/listing
+       -u <myUnStats> when grepping statistics, the total number of primaries
+                        already done is reported in these units;
+                      --> default: ${myUnStats};
+
+       -w <where>     subfolders of the study case
+       	  	      --> default for actions P,S,T: ${wherePST};
+                          format of subfolder names for regexp substitution
+       	  	      --> default for actions G,M: ${whereGM};
+                          format of subfolder names for grepping/listing
         NOTA BENE: given the different uses of this option for the actions, it 
                    is recommended to use defaults; otherwise, please consider
                    to perform a single action per script call or to merge all
@@ -153,13 +165,16 @@ EOF
 # ==============================================================================
 
 # get options
-while getopts  ":Cc:Hi:j:Mm:n:o:Pp:Ss:Tw:" opt ; do
+while getopts  ":Cc:GHi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
   case $opt in
     C)
       lClean=true
       ;;
     c)
       caseDir=$OPTARG
+      ;;
+    G)
+      lGrepStats=true
       ;;
     H)
       how_to_use
@@ -199,6 +214,9 @@ while getopts  ":Cc:Hi:j:Mm:n:o:Pp:Ss:Tw:" opt ; do
     T)
       lStop=true
       ;;
+    u)
+      myUnStats=$OPTARG
+      ;;
     w)
       where=$OPTARG
       ;;
@@ -220,6 +238,9 @@ if ${lPrepare} ; then
     if [ ! -f ${jobFile} ] ; then die "job file does NOT exist!" ; fi
     if [ ! -d ${origDir} ] ; then die "folder with original files does NOT exist!" ; fi
 fi
+if ${lGrepStats} ; then
+    if [ -z "${myUnStats}" ] ; then die "no unit for statistics!" ; fi
+fi
 # if ${lSubmit} ; then
 # fi
 if ${lMerge} ; then
@@ -234,10 +255,16 @@ fi
 # if ${lStop} ; then
 # fi
 # common options
-# - they are there
+# - case dir is defined and folder exists
 if [ -z "${caseDir}" ] ; then die "case NOT declared!" ; fi
-# - they are meaningful
 if [ ! -d ${caseDir} ] ; then die "folder with original files does NOT exist!" ; fi
+# - where are defined
+if ${lPrepare} | ${lSubtmi} | ${lStop} ; then
+    if [ -z "${wherePST}" ] ; then die "please provide a meaningful -w option!" ; fi
+fi
+if ${lGrepStats} | ${lMerge} ; then
+    if [ -z "${whereGM}" ] ; then die "please provide a meaningful -w option!" ; fi
+fi
 
 # ==============================================================================
 # DO THINGs
@@ -255,12 +282,11 @@ if ${lPrepare} ; then
     cd ${origDir}
     cp ${inputFile} ${jobFile} ${currDir}/${caseDir}
     cd - > /dev/null 2>&1
-    if [ -z "${where}" ] ; then where=${wherePST} ; fi
     # final steps of preparation (a folder per seed)
     cd ${caseDir}
     for ((iSeed=${seedMin}; iSeed<=${seedMax}; iSeed++ )) ; do 
         echo " ...preparing seed ${iSeed}..."
-        dirNum=`printf "${where}" "${iSeed}"`
+        dirNum=`printf "${wherePST}" "${iSeed}"`
         if [ -d ${dirNum} ] ; then
             echo " ...folder ${dirNum} already exists: recreating it!"
             rm -rf ${dirNum}
@@ -277,10 +303,9 @@ fi
 
 if ${lSubmit} ; then
     echo " submitting jobs of study ${caseDir} ..."
-    if [ -z "${where}" ] ; then where=${wherePST} ; fi
     for ((iSeed=${seedMin}; iSeed<=${seedMax}; iSeed++ )) ; do
         echo " ...submitting seed ${iSeed}..."
-        dirNum=`printf "${where}" "${iSeed}"`
+        dirNum=`printf "${wherePST}" "${iSeed}"`
         if ${lQueue} ; then
             currJobFile=job_${caseDir}_${dirNum}_`date "+%Y-%m-%d_%H-%M-%S"`.sh
             cat > ${currJobFile} <<EOF
@@ -298,6 +323,11 @@ EOF
     done
 fi
 
+if ${lGrepStats} ; then
+    echo " grepping statistics of jobs already over of study ${caseDir} ..."
+    stats=`grep -h 'Total number of primaries run' ${caseDir}/${whereGM}/*.out | awk -v unit=${myUnStats}  '{tot=tot+$6}END{print (tot/unit)}'`
+fi
+
 if ${lStop} ; then
     # gently stop FLUKA simulations
     echo " gently stopping all running jobs of study ${caseDir} ..."
@@ -305,11 +335,10 @@ if ${lStop} ; then
         echo " ...study folder ${caseDir} does not exists! is it spelled correctly?"
         exit 1
     fi
-    if [ -z "${where}" ] ; then where=${wherePST} ; fi
     # touch rfluka.stop in all the fluka_* folders
     cd ${caseDir}
     for ((iSeed=${seedMin}; iSeed<=${seedMax}; iSeed++ )) ; do
-        dirNum=`printf "${where}" "${iSeed}"`
+        dirNum=`printf "${wherePST}" "${iSeed}"`
         flukaFolders=`\ls -1d ${dirNum}/fluka*/`
         if [[ "${flukaFolders}" == "" ]] ; then
             echo " ...no FLUKA runs to stop for seed ${iSeed}!"
@@ -330,11 +359,6 @@ fi
 if ${lMerge} ; then
     echo " merging binary result files of study ${caseDir} ..."
     cd ${caseDir}
-    if [ -z "${where}" ] ; then
-        where=${whereM}
-    elif [ "${where}" == "${wherePST}"] ; then
-        where=${whereM}
-    fi
     for myScor in ${scorings[@]} ; do
         case ${myScor}  in
             RESNUCLE)
@@ -376,7 +400,7 @@ if ${lMerge} ; then
             echo "...found ${#units[@]} ${myScor} cards: processing..."
             for myUnit in ${units[@]} ; do
                 echo " merging ${myScor} on unit ${myUnit} ..."
-                ls -1 ${where}/*${myUnit} > ${myUnit}.txt
+                ls -1 ${whereGM}/*${myUnit} > ${myUnit}.txt
                 echo "" >> ${myUnit}.txt
                 echo "${inputFile%.inp}_${myUnit}.${extension}" >> ${myUnit}.txt
                 ${FLUKA}/flutil/${exeMerge} < ${myUnit}.txt > ${myUnit}.log 2>&1
