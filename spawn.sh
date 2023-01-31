@@ -246,6 +246,7 @@ fi
 if ${lMerge} ; then
     # mandatory options are there
     if [ -z "${inputFile}" ] ; then die ".inp file NOT declared!" ; fi
+    scorings=(${scorings//,/ })
     if [ ${#scorings[@]} -eq 0 ] ; then die "no scorings specified!" ; fi
 fi
 if ${lClean} ; then
