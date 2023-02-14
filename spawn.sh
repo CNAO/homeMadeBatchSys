@@ -76,16 +76,16 @@ cat <<EOF
                       -u <myUnStats> (optional)
                       -w <where>     (optional)
 
+       -H  help:      to print this help
+
+        example: /mnt/DATA/homeMadeBatchSys/spawn.sh -H
+
        -M  merge:     to merge results saved in binary files.
                       available options:
                       -c <caseDir>   (mandatory)
 		      -i <inputFile> (mandatory)
                       -s <scorings>  (optional)
                       -w <where>     (optional)
-
-       -H  help:      to print this help
-
-        example: /mnt/DATA/homeMadeBatchSys/spawn.sh -H
 
        -P  prepare:   to set up study folder, i.e. it creates the study folder,
                         with a ``master copy'' of the <inputFile> and <jobFile>,
@@ -228,6 +228,9 @@ while getopts  ":Cc:GHi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
       ;;
   esac
 done
+# common options
+# - case dir is defined
+if [ -z "${caseDir}" ] ; then die "case NOT declared!" ; fi
 # check options
 if ${lPrepare} ; then
     # mandatory options are there
@@ -240,27 +243,29 @@ if ${lPrepare} ; then
 fi
 if ${lGrepStats} ; then
     if [ -z "${myUnStats}" ] ; then die "no unit for statistics!" ; fi
+    if [ ! -d ${caseDir} ] ; then die "case folder does NOT exist!" ; fi
 fi
-# if ${lSubmit} ; then
-# fi
+if ${lSubmit} ; then
+    if [ ! -d ${caseDir} ] ; then die "case folder does NOT exist!" ; fi
+fi
 if ${lMerge} ; then
     # mandatory options are there
     if [ -z "${inputFile}" ] ; then die ".inp file NOT declared!" ; fi
     scorings=(${scorings//,/ })
     if [ ${#scorings[@]} -eq 0 ] ; then die "no scorings specified!" ; fi
+    if [ ! -d ${caseDir} ] ; then die "case folder does NOT exist!" ; fi
 fi
 if ${lClean} ; then
     # mandatory options are there
     if [ -z "${inputFile}" ] ; then die ".inp file NOT declared!" ; fi
+    if [ ! -d ${caseDir} ] ; then die "case folder does NOT exist!" ; fi
 fi
-# if ${lStop} ; then
-# fi
+if ${lStop} ; then
+    if [ ! -d ${caseDir} ] ; then die "case folder does NOT exist!" ; fi
+fi
 # common options
-# - case dir is defined and folder exists
-if [ -z "${caseDir}" ] ; then die "case NOT declared!" ; fi
-if [ ! -d ${caseDir} ] ; then die "folder with original files does NOT exist!" ; fi
 # - where are defined
-if ${lPrepare} | ${lSubtmi} | ${lStop} ; then
+if ${lPrepare} | ${lSubmit} | ${lStop} ; then
     if [ -z "${wherePST}" ] ; then die "please provide a meaningful -w option!" ; fi
 fi
 if ${lGrepStats} | ${lMerge} ; then
