@@ -135,7 +135,7 @@ cat <<EOF
        	  	      --> default: ${seedMax};
 
        -o <origDir>   folder where the master files are stored
-       	  	      --> NO defaults!
+       	  	      --> default: ${origDir};
 
        -p <nPrims>    number of primaries
        	  	      --> NO defaults!
@@ -317,7 +317,7 @@ if ${lSubmit} ; then
             cat > ${currJobFile} <<EOF
 #!/bin/bash
 cd ${PWD}/${caseDir}/${dirNum}
-./${jobFile} > ${jobFile}.log 2>&1
+./${jobFile} > ${jobFile}.log 2>&1 &
 EOF
             chmod +x ${currJobFile}
             mv ${currJobFile} ${spoolingPath}
