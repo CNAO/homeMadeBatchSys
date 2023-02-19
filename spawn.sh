@@ -331,7 +331,12 @@ fi
 
 if ${lGrepStats} ; then
     echo " grepping statistics of jobs already over of study ${caseDir} ..."
+    jobsDoneList=`ls -lh ${caseDir}/${whereGM}/*.out`
+    nJobsDone=`echo "${jobsDoneList}" | wc -l`
+    echo " ...jobs already over: ${nJobsDone} - list:"
+    echo "${jobsDoneList}"
     stats=`grep -h 'Total number of primaries run' ${caseDir}/${whereGM}/*.out | awk -v unit=${myUnStats}  '{tot=tot+$6}END{print (tot/unit)}'`
+    echo " ...primaries run so far: ${stats}x${myUnStats}"
 fi
 
 if ${lStop} ; then
