@@ -331,12 +331,30 @@ fi
 
 if ${lGrepStats} ; then
     echo " grepping statistics of jobs already over of study ${caseDir} ..."
-    jobsDoneList=`ls -lh ${caseDir}/${whereGM}/*.out`
-    nJobsDone=`echo "${jobsDoneList}" | wc -l`
-    echo " ...jobs already over: ${nJobsDone} - list:"
-    echo "${jobsDoneList}"
-    stats=`grep -h 'Total number of primaries run' ${caseDir}/${whereGM}/*.out | awk -v unit=${myUnStats}  '{tot=tot+$6}END{print (tot/unit)}'`
-    echo " ...primaries run so far: ${stats}x${myUnStats}"
+    for ext in out out.gz ; do
+        jobsDoneList=`ls -lh ${caseDir}/${whereGM}/*.${ext} 2>/dev/null`
+        if [ -z "${jobsDoneList}" ] ; then
+            echo " ...no files ${caseDir}/${whereGM}/*.${ext}!"
+        else
+            # calculations
+            nJobsDone=`echo "${jobsDoneList}" | wc -l`
+            stats=`zgrep -h 'Total number of primaries run' ${caseDir}/${whereGM}/*.${ext} | awk -v unit=${myUnStats}  '{tot=tot+$6}END{print (tot/unit)}'`
+            CPUmeanTimes=`zgrep -h 'Average CPU time used to follow a primary particle:'  ${caseDir}/${whereGM}/*.${ext} | awk '{print ($10*1000)}'`
+            meanCPUtime=`echo "${CPUmeanTimes}" | awk '{tot=tot+$1}END{print(tot/NR)}'`
+            stdCPUtime=`echo "${CPUmeanTimes}" | awk -v mean=${meanCPUtime} '{tot=tot+($1-mean)^2}END{print(sqrt(tot)/NR/mean*100)}'`
+            CPUmaxTimes=`zgrep -h 'Maximum CPU time used to follow a primary particle:'  ${caseDir}/${whereGM}/*.${ext} | awk '{print ($10*1000)}' | sort -g`
+            shortestOnes=`echo "${CPUmaxTimes}" | head -5`
+            longestOnes=`echo "${CPUmaxTimes}" | tail -5`
+            # printout
+            # echo " ...list of jobs already over:"
+            # echo "${jobsDoneList}"
+            echo " ...found ${nJobsDone} ${caseDir}/${whereGM}/*.${ext} (jobs done)!"
+            echo " ...primaries run so far: ${stats}x${myUnStats}"
+            echo " ...mean CPU time [ms]: ${meanCPUtime} +/- ${stdCPUtime} %"
+            echo " ...max CPU times [ms] (5 shortest):" ${shortestOnes}
+            echo " ...max CPU times [ms] (5 longest):" ${longestOnes}
+        fi
+    done
 fi
 
 if ${lStop} ; then
