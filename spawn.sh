@@ -77,6 +77,7 @@ cat <<EOF
                       -w <where>     (optional)
 
        -H  help:      to print this help
+                      available also as -h
 
         example: /mnt/DATA/homeMadeBatchSys/spawn.sh -H
 
@@ -165,7 +166,7 @@ EOF
 # ==============================================================================
 
 # get options
-while getopts  ":Cc:GHi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
+while getopts  ":Cc:GHhi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
   case $opt in
     C)
       lClean=true
@@ -177,6 +178,10 @@ while getopts  ":Cc:GHi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
       lGrepStats=true
       ;;
     H)
+      how_to_use
+      exit
+      ;;
+    h)
       how_to_use
       exit
       ;;
@@ -317,7 +322,7 @@ if ${lSubmit} ; then
             cat > ${currJobFile} <<EOF
 #!/bin/bash
 cd ${PWD}/${caseDir}/${dirNum}
-./${jobFile} > ${jobFile}.log 2>&1 &
+./${jobFile} > ${jobFile}.log 2>&1
 EOF
             chmod +x ${currJobFile}
             mv ${currJobFile} ${spoolingPath}

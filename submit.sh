@@ -46,6 +46,7 @@ currJobs=`ls -1 *.sh 2>/dev/null | grep -v -e ${thisScriptName} -e spawn.sh -e m
 if [ -n "${currJobs}" ] ; then
     currJobs=( ${currJobs} )
     for tmpJob in ${currJobs[@]} ; do
+        ! ${lDebug} || echo " --> HD: ps aux | grep ${tmpJob} | grep -v grep"
         if [ -z "`ps aux | grep ${tmpJob} | grep -v grep`" ] ; then
             ! ${lDebug} || echo " ...job ${tmpJob} is finished!"
             mv ${tmpJob} ${tmpJob}.log finished/
@@ -96,9 +97,10 @@ if [ ${nSubmit} -gt 0 ] ; then
         if ${lRoot} ; then
             # root submitting:
             jobOwner=`stat -c "%U" ${tmpFile}`
+            ! ${lDebug} || echo " --> HD: sudo -H -u ${jobOwner} bash -c \"./${tmpFileName} 2>&1 > ${tmpFileName}.log\" &"
             mv ${tmpFile} .
             # run the job as the user owning the job file
-            sudo -H -u ${jobOwner} bash -c "./${tmpFileName} 2>&1 > ${tmpFileName}.log" &
+            sudo -H -u ${jobOwner} bash -c "./${tmpFileName} 2>&1 > ${tmpFileName}.log &"
         else
             mv ${tmpFile} .
             ./${tmpFileName} 2>&1 > ${tmpFileName}.log &
