@@ -1,21 +1,23 @@
 #!/bin/bash
 
 # A.Mereghetti, 2022-11-28
-# this is a template job file
+# this is a template batch job file
 
 RunFolder=$HOME
 
-# start job
+# start batch job
 echo " starting job at `date`..."
 cd ${RunFolder}
 
-# run
+# --------------------------------------
+# actual simulation job
 echo " ...running in $PWD as $USER ..." 
 for ((ii=1;ii<=1200;ii++)); do
     echo "Hello world! ${ii}"
     sleep 1
 done
+# --------------------------------------
 
-# end of job
+# end of batch job
 cd - > /dev/null 2>&1
 echo " ...ending job at `date`."
