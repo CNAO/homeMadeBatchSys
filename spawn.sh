@@ -476,6 +476,7 @@ fi
 if ${lClean} ; then
     echo ""
     echo " cleaning folder ${caseDir} ..."
+    sizeBefore=`du -sh ${caseDir} | awk '{print ($1)}'`
     echo " ...removing binary files in run folders..."
     find ${caseDir} -name "${inputFile%.inp}???_fort.??" -print -delete
     echo " ...gzipping FLKA .out/.err/.log"
@@ -484,6 +485,9 @@ if ${lClean} ; then
     done
     echo " ...removing ran* files in run folders..."
     find ${caseDir} -name "ran${inputFile%.inp}???" -print -delete
+    sizeAfter=`du -sh ${caseDir} | awk '{print ($1)}'`
+    echo "size BEFORE cleaning: ${sizeBefore}"
+    echo "size AFTER  cleaning: ${sizeAfter}"
 fi
 
 echo ""
