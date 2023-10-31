@@ -1,12 +1,12 @@
 # homeMadeBatchSys
-This is the repo of a very simple, home-made batch system.
-It is supposed to collect very basic settings and scripts to allow for a job queueing system.
+This repo collects settings and scripts of a very simple, home-made batch system.
 Nota Bene: the system is supposed to run on a linux machine!
 
-The system is not supposed to scale up significantly in throughput, but it is supposed to be checked out and made running in the easiest way possible on personal computers/laptops.
+The system is not designed for very large CPU farms; on the contrary, it is meant to simply automatically submit jobs on a multi-core/multi-thread CPU.
+The system can be checked out and made running very easily.
 If this system does not suite your needs, please check more popular batch systems - e.g. [htcondor](https://research.cs.wisc.edu/htcondor/)
 
-The system is based on a crontab job, checking the status of the CPUs on a regular basis, and simple scripts to find new jobs, submitting them (if it is the case) and archiving files of finished jobs.
+The system is based on a crontab job, checking the status of the CPUs on a regular basis, and a simple script to find new jobs, submit them (if it is the case) and archive files of finished jobs.
 
 ```
 # Example of crontab job, forcing the use of 5 CPUs/threads for crunching jobs
