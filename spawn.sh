@@ -477,6 +477,8 @@ if ${lClean} ; then
     echo ""
     echo " cleaning folder ${caseDir} ..."
     sizeBefore=`du -sh ${caseDir} | awk '{print ($1)}'`
+    echo " ...removing fluka_* folders (crashed jobs)..."
+    find ${caseDir} -name "fluka_*" -type d -print -exec rm -rf {} \;
     echo " ...removing binary files in run folders..."
     find ${caseDir} -name "${inputFile%.inp}???_fort.??" -print -delete
     echo " ...gzipping FLKA .out/.err/.log"
