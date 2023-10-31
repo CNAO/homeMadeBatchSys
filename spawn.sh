@@ -77,6 +77,7 @@ cat <<EOF
                       -w <where>     (optional)
 
        -H  help:      to print this help
+                      available also as -h
 
         example: /mnt/DATA/homeMadeBatchSys/spawn.sh -H
 
@@ -165,7 +166,7 @@ EOF
 # ==============================================================================
 
 # get options
-while getopts  ":Cc:GHi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
+while getopts  ":Cc:GHhi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
   case $opt in
     C)
       lClean=true
@@ -177,6 +178,10 @@ while getopts  ":Cc:GHi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
       lGrepStats=true
       ;;
     H)
+      how_to_use
+      exit
+      ;;
+    h)
       how_to_use
       exit
       ;;
@@ -277,6 +282,7 @@ fi
 # ==============================================================================
 
 if ${lPrepare} ; then
+    echo ""
     # prepare study dir
     echo " preparing jobs of study ${caseDir} ..."
     if [ -d ${caseDir} ] ; then
@@ -308,6 +314,7 @@ if ${lPrepare} ; then
 fi
 
 if ${lSubmit} ; then
+    echo ""
     echo " submitting jobs of study ${caseDir} ..."
     for ((iSeed=${seedMin}; iSeed<=${seedMax}; iSeed++ )) ; do
         echo " ...submitting seed ${iSeed}..."
@@ -317,7 +324,7 @@ if ${lSubmit} ; then
             cat > ${currJobFile} <<EOF
 #!/bin/bash
 cd ${PWD}/${caseDir}/${dirNum}
-./${jobFile} > ${jobFile}.log 2>&1 &
+./${jobFile} > ${jobFile}.log 2>&1
 EOF
             chmod +x ${currJobFile}
             mv ${currJobFile} ${spoolingPath}
@@ -330,6 +337,7 @@ EOF
 fi
 
 if ${lGrepStats} ; then
+    echo ""
     echo " grepping statistics of jobs already over of study ${caseDir} ..."
     for ext in out out.gz ; do
         jobsDoneList=`ls -lh ${caseDir}/${whereGM}/*.${ext} 2>/dev/null`
@@ -355,9 +363,33 @@ if ${lGrepStats} ; then
             echo " ...max CPU times [ms] (5 longest):" ${longestOnes}
         fi
     done
+    echo ""
+    echo " grepping statistics of jobs still running for study ${caseDir} ..."
+    jobRunList=`ls -lh ${caseDir}/${whereGM}/fluka_*/*.out 2>/dev/null`
+    if [ -z "${jobRunList}" ] ; then
+        echo " ...no files ${caseDir}/${whereGM}/fluka_*/*.out!"
+    else
+        # calculations
+        nJobsRun=`echo "${jobRunList}" | wc -l`
+        stats=`tail -n2 ${caseDir}/${whereGM}/fluka_*/*.out | grep 1.0000000E+30 | awk -v unit=${myUnStats}  '{tot=tot+$1}END{print (tot/unit)}'`
+        CPUmeanTimes=`tail -n2 ${caseDir}/${whereGM}/fluka_*/*.out | grep 1.0000000E+30 | awk '{print ($4*1000)}'`
+        meanCPUtime=`echo "${CPUmeanTimes}" | awk '{tot=tot+$1}END{print(tot/NR)}'`
+        stdCPUtime=`echo "${CPUmeanTimes}" | awk -v mean=${meanCPUtime} '{tot=tot+($1-mean)^2}END{print(sqrt(tot)/NR/mean*100)}'`
+        shortestOnes=`echo "${CPUmeanTimes}" | head -5`
+        longestOnes=`echo "${CPUmeanTimes}" | tail -5`
+        # printout
+        # echo " ...list of jobs still running:"
+        # echo "${jobRunList}"
+        echo " ...found ${nJobsRun} ${caseDir}/${whereGM}/fluka_*/*.out (jobs still running)!"
+        echo " ...primaries run so far: ${stats}x${myUnStats}"
+        echo " ...mean CPU time [ms]: ${meanCPUtime} +/- ${stdCPUtime} %"
+        echo " ...max CPU times [ms] (5 shortest):" ${shortestOnes}
+        echo " ...max CPU times [ms] (5 longest):" ${longestOnes}
+    fi
 fi
 
 if ${lStop} ; then
+    echo ""
     # gently stop FLUKA simulations
     echo " gently stopping all running jobs of study ${caseDir} ..."
     if [ ! -d ${caseDir} ] ; then
@@ -386,6 +418,7 @@ if ${lStop} ; then
 fi
 
 if ${lMerge} ; then
+    echo ""
     echo " merging binary result files of study ${caseDir} ..."
     cd ${caseDir}
     for myScor in ${scorings[@]} ; do
@@ -441,7 +474,11 @@ if ${lMerge} ; then
 fi
 
 if ${lClean} ; then
+    echo ""
     echo " cleaning folder ${caseDir} ..."
+    sizeBefore=`du -sh ${caseDir} | awk '{print ($1)}'`
+    echo " ...removing fluka_* folders (crashed jobs)..."
+    find ${caseDir} -name "fluka_*" -type d -print -exec rm -rf {} \;
     echo " ...removing binary files in run folders..."
     find ${caseDir} -name "${inputFile%.inp}???_fort.??" -print -delete
     echo " ...gzipping FLKA .out/.err/.log"
@@ -450,4 +487,11 @@ if ${lClean} ; then
     done
     echo " ...removing ran* files in run folders..."
     find ${caseDir} -name "ran${inputFile%.inp}???" -print -delete
+    sizeAfter=`du -sh ${caseDir} | awk '{print ($1)}'`
+    echo "size BEFORE cleaning: ${sizeBefore}"
+    echo "size AFTER  cleaning: ${sizeAfter}"
 fi
+
+echo ""
+echo "...done."
+echo ""
