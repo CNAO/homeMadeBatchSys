@@ -13,6 +13,7 @@ wherePST="run_%05i"
 whereGM="run_?????"
 # what to do
 lPrepare=false
+lExpand=false
 lSubmit=false
 lGrepStats=false
 lStop=false
@@ -70,6 +71,18 @@ cat <<EOF
 
         example: /mnt/DATA/homeMadeBatchSys/spawn.sh -C -c P_W -i XPRcolli.inp
 
+       -E  expand:    to prepare further run clones in the specified study folder;
+                      the folder must have been already created by a previous -P
+                        action (see -P action);
+                      available options:
+                      -c <caseDir>   (mandatory)
+		      -i <inputFile> (mandatory)
+		      -j <jobFile>   (optional)
+		      -m <seedMin>   (optional)
+		      -n <seedMax>   (optional)
+		      -o <origDir>   (optional)
+		      -p <nPrims>    (mandatory)
+
        -G  grep stat: to grep statistics on the jobs already over.
                       available options:
                       -c <caseDir>   (mandatory)
@@ -92,8 +105,8 @@ cat <<EOF
                         with a ``master copy'' of the <inputFile> and <jobFile>,
                         and all the run_????? directories, each different from
                         the others by the seed.
-                      this action can be used also to add statistics to an
-                        existing study case;
+                      to add statistics to an existing study case, please see the
+                        -E action;
                       available options:
                       -c <caseDir>   (mandatory)
 		      -i <inputFile> (mandatory)
@@ -106,8 +119,10 @@ cat <<EOF
        -S  submit:    to submit jobs;
                       available options:
                       -c <caseDir>   (mandatory)
+		      -j <jobFile>   (optional)
 		      -m <seedMin>   (optional)
 		      -n <seedMax>   (optional)
+                      -w <where>     (optional)
 
        -T  stop:      to gently stop jobs currently running, i.e. giving the
                         possibility to collect results, by touching rfluka.stop
@@ -166,13 +181,16 @@ EOF
 # ==============================================================================
 
 # get options
-while getopts  ":Cc:GHhi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
+while getopts  ":Cc:EGHhi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
   case $opt in
     C)
       lClean=true
       ;;
     c)
       caseDir=$OPTARG
+      ;;
+    E)
+      lExpand=true
       ;;
     G)
       lGrepStats=true
@@ -223,7 +241,8 @@ while getopts  ":Cc:GHhi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
       myUnStats=$OPTARG
       ;;
     w)
-      where=$OPTARG
+      wherePST=$OPTARG
+      whereGM=$OPTARG
       ;;
     \?)
       die "Invalid option: -$OPTARG"
@@ -270,10 +289,7 @@ if ${lStop} ; then
 fi
 # common options
 # - where are defined
-if ${lPrepare} | ${lSubmit} | ${lStop} ; then
-    if [ -z "${wherePST}" ] ; then die "please provide a meaningful -w option!" ; fi
-fi
-if ${lGrepStats} | ${lMerge} ; then
+if ${lGrepStats} || ${lMerge} ; then
     if [ -z "${whereGM}" ] ; then die "please provide a meaningful -w option!" ; fi
 fi
 
@@ -293,7 +309,14 @@ if ${lPrepare} ; then
     # copy files
     cd ${origDir}
     cp ${inputFile} ${jobFile} ${currDir}/${caseDir}
+    # update number of primaries
+    sed -i "s/^START.*/START     `printf "%10.1f" "${nPrims}"`/g" ${currDir}/${caseDir}/${inputFile}
     cd - > /dev/null 2>&1
+fi
+
+if ${lPrepare} || ${lExpand} ; then
+    let nJobs=${seedMax}-${seedMin}+1
+    echo " creating ${nJobs} job(s) for study ${caseDir} ..."
     # final steps of preparation (a folder per seed)
     cd ${caseDir}
     for ((iSeed=${seedMin}; iSeed<=${seedMax}; iSeed++ )) ; do 
