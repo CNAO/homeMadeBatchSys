@@ -388,7 +388,7 @@ if ${lGrepStats} ; then
     done
     echo ""
     echo " grepping statistics of jobs still running for study ${caseDir} ..."
-    jobRunList=`ls -lh ${caseDir}/${whereGM}/fluka_*/*.out 2>/dev/null`
+    jobRunList=`ls -1 ${caseDir}/${whereGM}/fluka_*/*.out 2>/dev/null`
     if [ -z "${jobRunList}" ] ; then
         echo " ...no files ${caseDir}/${whereGM}/fluka_*/*.out!"
     else
@@ -404,6 +404,12 @@ if ${lGrepStats} ; then
         # echo " ...list of jobs still running:"
         # echo "${jobRunList}"
         echo " ...found ${nJobsRun} ${caseDir}/${whereGM}/fluka_*/*.out (jobs still running)!"
+        for myFile in ${jobRunList} ; do
+            myTStamp=`ls -l ${myFile} | awk '{print ($6,$7,$8)}'`
+            myStats=`tail -n2 ${myFile} | grep 1.0000000E+30 | awk -v unit=${myUnStats}  '{print ($1/unit)}'`
+            myCPUtime=`tail -n2 ${myFile} | grep 1.0000000E+30 | awk '{print ($4*1000)}'`
+            echo " ...file ${myFile} - time stamp: ${myTStamp} - stats: ${myStats}x${myUnStats} - mean CPU time: ${myCPUtime} ms"
+        done
         echo " ...primaries run so far: ${stats}x${myUnStats}"
         echo " ...mean CPU time [ms]: ${meanCPUtime} +/- ${stdCPUtime} %"
         echo " ...max CPU times [ms] (5 shortest):" ${shortestOnes}
