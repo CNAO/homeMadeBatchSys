@@ -492,9 +492,13 @@ if ${lMerge} ; then
             for myUnit in ${units[@]} ; do
                 echo " merging ${myScor} on unit ${myUnit} ..."
                 ls -1 ${whereGM}/*${myUnit} > ${myUnit}.txt
-                echo "" >> ${myUnit}.txt
-                echo "${inputFile%.inp}_${myUnit}.${extension}" >> ${myUnit}.txt
-                ${FLUKA}/flutil/${exeMerge} < ${myUnit}.txt > ${myUnit}.log 2>&1
+                if [ `wc -l ${myUnit}.txt | awk '{print ($1)}'` -eq 0 ] ; then
+                    echo "...no ${whereGM}/*${myUnit} files found! No processing..."
+                else
+                    echo "" >> ${myUnit}.txt
+                    echo "${inputFile%.inp}_${myUnit}.${extension}" >> ${myUnit}.txt
+                    ${FLUKA}/flutil/${exeMerge} < ${myUnit}.txt > ${myUnit}.log 2>&1
+                fi
                 rm ${myUnit}.*            
             done
         fi
