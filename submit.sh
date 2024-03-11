@@ -20,6 +20,7 @@ function myExit(){
 nSubmitted=0
 nCleaned=0
 nProcesses=0
+nMaxSubmissionsPerCall=1
 lDebug=true
 lRoot=false
 thisScriptName=`basename $0`
@@ -33,8 +34,11 @@ else
     nCPUs=`grep -Pc '^processor\t' /proc/cpuinfo`
     let nCPUs=${nCPUs}-1
 fi
+if [ ${nCPUs} -lt ${nMaxSubmissionsPerCall} ] ; then
+    nMaxSubmissionsPerCall=${nCPUs}
+fi
 echo ""
-echo " starting $0 at `date` run as `whoami` - allocated CPUs: ${nCPUs} ..."
+echo " starting $0 at `date` run as `whoami` - allocated CPUs: ${nCPUs} - max # newly submitted jobs per call: ${nMaxSubmissionsPerCall}..."
 
 if [ -e stop.submit ] ; then
     echo " ...stop.submit found! exiting istantly..."
@@ -89,6 +93,7 @@ echo " getting how many jobs I can submit..."
 let nSubmit=${nCPUs}-${nProcesses}
 if [ ${nSubmit} -gt 0 ] ; then
     [ ${nSubmit} -le ${#waitingJobs[@]} ] || nSubmit=${#waitingJobs[@]}
+    [ ${nSubmit} -le ${nMaxSubmissionsPerCall} ] || nSubmit=${nMaxSubmissionsPerCall}
     echo " ...submitting ${nSubmit} jobs!"
     for (( jj=0; jj<${nSubmit}; jj++ )) ; do
         tmpFile=${waitingJobs[$jj]}
