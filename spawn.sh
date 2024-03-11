@@ -13,6 +13,7 @@ wherePST="run_%05i"
 whereGM="run_?????"
 # what to do
 lPrepare=false
+lExpand=false
 lSubmit=false
 lGrepStats=false
 lStop=false
@@ -70,6 +71,18 @@ cat <<EOF
 
         example: /mnt/DATA/homeMadeBatchSys/spawn.sh -C -c P_W -i XPRcolli.inp
 
+       -E  expand:    to prepare further run clones in the specified study folder;
+                      the folder must have been already created by a previous -P
+                        action (see -P action);
+                      available options:
+                      -c <caseDir>   (mandatory)
+		      -i <inputFile> (mandatory)
+		      -j <jobFile>   (optional)
+		      -m <seedMin>   (optional)
+		      -n <seedMax>   (optional)
+		      -o <origDir>   (optional)
+		      -p <nPrims>    (mandatory)
+
        -G  grep stat: to grep statistics on the jobs already over.
                       available options:
                       -c <caseDir>   (mandatory)
@@ -77,6 +90,7 @@ cat <<EOF
                       -w <where>     (optional)
 
        -H  help:      to print this help
+                      available also as -h
 
         example: /mnt/DATA/homeMadeBatchSys/spawn.sh -H
 
@@ -91,8 +105,8 @@ cat <<EOF
                         with a ``master copy'' of the <inputFile> and <jobFile>,
                         and all the run_????? directories, each different from
                         the others by the seed.
-                      this action can be used also to add statistics to an
-                        existing study case;
+                      to add statistics to an existing study case, please see the
+                        -E action;
                       available options:
                       -c <caseDir>   (mandatory)
 		      -i <inputFile> (mandatory)
@@ -105,8 +119,10 @@ cat <<EOF
        -S  submit:    to submit jobs;
                       available options:
                       -c <caseDir>   (mandatory)
+		      -j <jobFile>   (optional)
 		      -m <seedMin>   (optional)
 		      -n <seedMax>   (optional)
+                      -w <where>     (optional)
 
        -T  stop:      to gently stop jobs currently running, i.e. giving the
                         possibility to collect results, by touching rfluka.stop
@@ -165,7 +181,7 @@ EOF
 # ==============================================================================
 
 # get options
-while getopts  ":Cc:GHi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
+while getopts  ":Cc:EGHhi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
   case $opt in
     C)
       lClean=true
@@ -173,10 +189,17 @@ while getopts  ":Cc:GHi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
     c)
       caseDir=$OPTARG
       ;;
+    E)
+      lExpand=true
+      ;;
     G)
       lGrepStats=true
       ;;
     H)
+      how_to_use
+      exit
+      ;;
+    h)
       how_to_use
       exit
       ;;
@@ -218,7 +241,8 @@ while getopts  ":Cc:GHi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
       myUnStats=$OPTARG
       ;;
     w)
-      where=$OPTARG
+      wherePST=$OPTARG
+      whereGM=$OPTARG
       ;;
     \?)
       die "Invalid option: -$OPTARG"
@@ -265,10 +289,7 @@ if ${lStop} ; then
 fi
 # common options
 # - where are defined
-if ${lPrepare} | ${lSubmit} | ${lStop} ; then
-    if [ -z "${wherePST}" ] ; then die "please provide a meaningful -w option!" ; fi
-fi
-if ${lGrepStats} | ${lMerge} ; then
+if ${lGrepStats} || ${lMerge} ; then
     if [ -z "${whereGM}" ] ; then die "please provide a meaningful -w option!" ; fi
 fi
 
@@ -277,6 +298,7 @@ fi
 # ==============================================================================
 
 if ${lPrepare} ; then
+    echo ""
     # prepare study dir
     echo " preparing jobs of study ${caseDir} ..."
     if [ -d ${caseDir} ] ; then
@@ -287,7 +309,14 @@ if ${lPrepare} ; then
     # copy files
     cd ${origDir}
     cp ${inputFile} ${jobFile} ${currDir}/${caseDir}
+    # update number of primaries
+    sed -i "s/^START.*/START     `printf "%10.1f" "${nPrims}"`/g" ${currDir}/${caseDir}/${inputFile}
     cd - > /dev/null 2>&1
+fi
+
+if ${lPrepare} || ${lExpand} ; then
+    let nJobs=${seedMax}-${seedMin}+1
+    echo " creating ${nJobs} job(s) for study ${caseDir} ..."
     # final steps of preparation (a folder per seed)
     cd ${caseDir}
     for ((iSeed=${seedMin}; iSeed<=${seedMax}; iSeed++ )) ; do 
@@ -308,6 +337,7 @@ if ${lPrepare} ; then
 fi
 
 if ${lSubmit} ; then
+    echo ""
     echo " submitting jobs of study ${caseDir} ..."
     for ((iSeed=${seedMin}; iSeed<=${seedMax}; iSeed++ )) ; do
         echo " ...submitting seed ${iSeed}..."
@@ -317,7 +347,7 @@ if ${lSubmit} ; then
             cat > ${currJobFile} <<EOF
 #!/bin/bash
 cd ${PWD}/${caseDir}/${dirNum}
-./${jobFile} > ${jobFile}.log 2>&1 &
+./${jobFile} > ${jobFile}.log 2>&1
 EOF
             chmod +x ${currJobFile}
             mv ${currJobFile} ${spoolingPath}
@@ -330,6 +360,7 @@ EOF
 fi
 
 if ${lGrepStats} ; then
+    echo ""
     echo " grepping statistics of jobs already over of study ${caseDir} ..."
     for ext in out out.gz ; do
         jobsDoneList=`ls -lh ${caseDir}/${whereGM}/*.${ext} 2>/dev/null`
@@ -355,9 +386,39 @@ if ${lGrepStats} ; then
             echo " ...max CPU times [ms] (5 longest):" ${longestOnes}
         fi
     done
+    echo ""
+    echo " grepping statistics of jobs still running for study ${caseDir} ..."
+    jobRunList=`ls -1 ${caseDir}/${whereGM}/fluka_*/*.out 2>/dev/null`
+    if [ -z "${jobRunList}" ] ; then
+        echo " ...no files ${caseDir}/${whereGM}/fluka_*/*.out!"
+    else
+        # calculations
+        nJobsRun=`echo "${jobRunList}" | wc -l`
+        stats=`tail -n2 ${caseDir}/${whereGM}/fluka_*/*.out | grep 1.0000000E+30 | awk -v unit=${myUnStats}  '{tot=tot+$1}END{print (tot/unit)}'`
+        CPUmeanTimes=`tail -n2 ${caseDir}/${whereGM}/fluka_*/*.out | grep 1.0000000E+30 | awk '{print ($4*1000)}'`
+        meanCPUtime=`echo "${CPUmeanTimes}" | awk '{tot=tot+$1}END{print(tot/NR)}'`
+        stdCPUtime=`echo "${CPUmeanTimes}" | awk -v mean=${meanCPUtime} '{tot=tot+($1-mean)^2}END{print(sqrt(tot)/NR/mean*100)}'`
+        shortestOnes=`echo "${CPUmeanTimes}" | head -5`
+        longestOnes=`echo "${CPUmeanTimes}" | tail -5`
+        # printout
+        # echo " ...list of jobs still running:"
+        # echo "${jobRunList}"
+        echo " ...found ${nJobsRun} ${caseDir}/${whereGM}/fluka_*/*.out (jobs still running)!"
+        for myFile in ${jobRunList} ; do
+            myTStamp=`ls -l ${myFile} | awk '{print ($6,$7,$8)}'`
+            myStats=`tail -n2 ${myFile} | grep 1.0000000E+30 | awk -v unit=${myUnStats}  '{print ($1/unit)}'`
+            myCPUtime=`tail -n2 ${myFile} | grep 1.0000000E+30 | awk '{print ($4*1000)}'`
+            echo " ...file ${myFile} - time stamp: ${myTStamp} - stats: ${myStats}x${myUnStats} - mean CPU time: ${myCPUtime} ms"
+        done
+        echo " ...primaries run so far: ${stats}x${myUnStats}"
+        echo " ...mean CPU time [ms]: ${meanCPUtime} +/- ${stdCPUtime} %"
+        echo " ...max CPU times [ms] (5 shortest):" ${shortestOnes}
+        echo " ...max CPU times [ms] (5 longest):" ${longestOnes}
+    fi
 fi
 
 if ${lStop} ; then
+    echo ""
     # gently stop FLUKA simulations
     echo " gently stopping all running jobs of study ${caseDir} ..."
     if [ ! -d ${caseDir} ] ; then
@@ -386,6 +447,7 @@ if ${lStop} ; then
 fi
 
 if ${lMerge} ; then
+    echo ""
     echo " merging binary result files of study ${caseDir} ..."
     cd ${caseDir}
     for myScor in ${scorings[@]} ; do
@@ -430,9 +492,13 @@ if ${lMerge} ; then
             for myUnit in ${units[@]} ; do
                 echo " merging ${myScor} on unit ${myUnit} ..."
                 ls -1 ${whereGM}/*${myUnit} > ${myUnit}.txt
-                echo "" >> ${myUnit}.txt
-                echo "${inputFile%.inp}_${myUnit}.${extension}" >> ${myUnit}.txt
-                ${FLUKA}/flutil/${exeMerge} < ${myUnit}.txt > ${myUnit}.log 2>&1
+                if [ `wc -l ${myUnit}.txt | awk '{print ($1)}'` -eq 0 ] ; then
+                    echo "...no ${whereGM}/*${myUnit} files found! No processing..."
+                else
+                    echo "" >> ${myUnit}.txt
+                    echo "${inputFile%.inp}_${myUnit}.${extension}" >> ${myUnit}.txt
+                    ${FLUKA}/flutil/${exeMerge} < ${myUnit}.txt > ${myUnit}.log 2>&1
+                fi
                 rm ${myUnit}.*            
             done
         fi
@@ -441,7 +507,11 @@ if ${lMerge} ; then
 fi
 
 if ${lClean} ; then
+    echo ""
     echo " cleaning folder ${caseDir} ..."
+    sizeBefore=`du -sh ${caseDir} | awk '{print ($1)}'`
+    echo " ...removing fluka_* folders (crashed jobs)..."
+    find ${caseDir} -name "fluka_*" -type d -print -exec rm -rf {} \;
     echo " ...removing binary files in run folders..."
     find ${caseDir} -name "${inputFile%.inp}???_fort.??" -print -delete
     echo " ...gzipping FLKA .out/.err/.log"
@@ -450,4 +520,11 @@ if ${lClean} ; then
     done
     echo " ...removing ran* files in run folders..."
     find ${caseDir} -name "ran${inputFile%.inp}???" -print -delete
+    sizeAfter=`du -sh ${caseDir} | awk '{print ($1)}'`
+    echo "size BEFORE cleaning: ${sizeBefore}"
+    echo "size AFTER  cleaning: ${sizeAfter}"
 fi
+
+echo ""
+echo "...done."
+echo ""
