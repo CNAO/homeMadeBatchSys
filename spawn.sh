@@ -21,7 +21,7 @@ lMerge=false
 lClean=false
 # hand-made queueing system
 lQueue=true
-spoolingPath=/mnt/DATA/homeMadeBatchSys/queueing
+spoolingPath=`dirname $0`/queueing
 # log file
 logFile=.`basename $0`.log
 
