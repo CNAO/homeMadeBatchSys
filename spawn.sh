@@ -13,6 +13,7 @@ wherePST="run_%05i"
 whereGM="run_?????"
 # what to do
 lPrepare=false
+lExpand=false
 lSubmit=false
 lGrepStats=false
 lStop=false
@@ -20,7 +21,7 @@ lMerge=false
 lClean=false
 # hand-made queueing system
 lQueue=true
-spoolingPath=/mnt/DATA/homeMadeBatchSys/queueing
+spoolingPath=`dirname $0`/queueing
 # log file
 logFile=.`basename $0`.log
 
@@ -70,6 +71,18 @@ cat <<EOF
 
         example: /mnt/DATA/homeMadeBatchSys/spawn.sh -C -c P_W -i XPRcolli.inp
 
+       -E  expand:    to prepare further run clones in the specified study folder;
+                      the folder must have been already created by a previous -P
+                        action (see -P action);
+                      available options:
+                      -c <caseDir>   (mandatory)
+		      -i <inputFile> (mandatory)
+		      -j <jobFile>   (optional)
+		      -m <seedMin>   (optional)
+		      -n <seedMax>   (optional)
+		      -o <origDir>   (optional)
+		      -p <nPrims>    (mandatory)
+
        -G  grep stat: to grep statistics on the jobs already over.
                       available options:
                       -c <caseDir>   (mandatory)
@@ -92,8 +105,8 @@ cat <<EOF
                         with a ``master copy'' of the <inputFile> and <jobFile>,
                         and all the run_????? directories, each different from
                         the others by the seed.
-                      this action can be used also to add statistics to an
-                        existing study case;
+                      to add statistics to an existing study case, please see the
+                        -E action;
                       available options:
                       -c <caseDir>   (mandatory)
 		      -i <inputFile> (mandatory)
@@ -106,8 +119,10 @@ cat <<EOF
        -S  submit:    to submit jobs;
                       available options:
                       -c <caseDir>   (mandatory)
+		      -j <jobFile>   (optional)
 		      -m <seedMin>   (optional)
 		      -n <seedMax>   (optional)
+                      -w <where>     (optional)
 
        -T  stop:      to gently stop jobs currently running, i.e. giving the
                         possibility to collect results, by touching rfluka.stop
@@ -166,13 +181,16 @@ EOF
 # ==============================================================================
 
 # get options
-while getopts  ":Cc:GHhi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
+while getopts  ":Cc:EGHhi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
   case $opt in
     C)
       lClean=true
       ;;
     c)
       caseDir=$OPTARG
+      ;;
+    E)
+      lExpand=true
       ;;
     G)
       lGrepStats=true
@@ -223,7 +241,8 @@ while getopts  ":Cc:GHhi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
       myUnStats=$OPTARG
       ;;
     w)
-      where=$OPTARG
+      wherePST=$OPTARG
+      whereGM=$OPTARG
       ;;
     \?)
       die "Invalid option: -$OPTARG"
@@ -270,10 +289,7 @@ if ${lStop} ; then
 fi
 # common options
 # - where are defined
-if ${lPrepare} | ${lSubmit} | ${lStop} ; then
-    if [ -z "${wherePST}" ] ; then die "please provide a meaningful -w option!" ; fi
-fi
-if ${lGrepStats} | ${lMerge} ; then
+if ${lGrepStats} || ${lMerge} ; then
     if [ -z "${whereGM}" ] ; then die "please provide a meaningful -w option!" ; fi
 fi
 
@@ -293,7 +309,14 @@ if ${lPrepare} ; then
     # copy files
     cd ${origDir}
     cp ${inputFile} ${jobFile} ${currDir}/${caseDir}
+    # update number of primaries
+    sed -i "s/^START.*/START     `printf "%10.1f" "${nPrims}"`/g" ${currDir}/${caseDir}/${inputFile}
     cd - > /dev/null 2>&1
+fi
+
+if ${lPrepare} || ${lExpand} ; then
+    let nJobs=${seedMax}-${seedMin}+1
+    echo " creating ${nJobs} job(s) for study ${caseDir} ..."
     # final steps of preparation (a folder per seed)
     cd ${caseDir}
     for ((iSeed=${seedMin}; iSeed<=${seedMax}; iSeed++ )) ; do 
@@ -365,7 +388,7 @@ if ${lGrepStats} ; then
     done
     echo ""
     echo " grepping statistics of jobs still running for study ${caseDir} ..."
-    jobRunList=`ls -lh ${caseDir}/${whereGM}/fluka_*/*.out 2>/dev/null`
+    jobRunList=`ls -1 ${caseDir}/${whereGM}/fluka_*/*.out 2>/dev/null`
     if [ -z "${jobRunList}" ] ; then
         echo " ...no files ${caseDir}/${whereGM}/fluka_*/*.out!"
     else
@@ -381,6 +404,12 @@ if ${lGrepStats} ; then
         # echo " ...list of jobs still running:"
         # echo "${jobRunList}"
         echo " ...found ${nJobsRun} ${caseDir}/${whereGM}/fluka_*/*.out (jobs still running)!"
+        for myFile in ${jobRunList} ; do
+            myTStamp=`ls -l ${myFile} | awk '{print ($6,$7,$8)}'`
+            myStats=`tail -n2 ${myFile} | grep 1.0000000E+30 | awk -v unit=${myUnStats}  '{print ($1/unit)}'`
+            myCPUtime=`tail -n2 ${myFile} | grep 1.0000000E+30 | awk '{print ($4*1000)}'`
+            echo " ...file ${myFile} - time stamp: ${myTStamp} - stats: ${myStats}x${myUnStats} - mean CPU time: ${myCPUtime} ms"
+        done
         echo " ...primaries run so far: ${stats}x${myUnStats}"
         echo " ...mean CPU time [ms]: ${meanCPUtime} +/- ${stdCPUtime} %"
         echo " ...max CPU times [ms] (5 shortest):" ${shortestOnes}
@@ -463,9 +492,13 @@ if ${lMerge} ; then
             for myUnit in ${units[@]} ; do
                 echo " merging ${myScor} on unit ${myUnit} ..."
                 ls -1 ${whereGM}/*${myUnit} > ${myUnit}.txt
-                echo "" >> ${myUnit}.txt
-                echo "${inputFile%.inp}_${myUnit}.${extension}" >> ${myUnit}.txt
-                ${FLUKA}/flutil/${exeMerge} < ${myUnit}.txt > ${myUnit}.log 2>&1
+                if [ `wc -l ${myUnit}.txt | awk '{print ($1)}'` -eq 0 ] ; then
+                    echo "...no ${whereGM}/*${myUnit} files found! No processing..."
+                else
+                    echo "" >> ${myUnit}.txt
+                    echo "${inputFile%.inp}_${myUnit}.${extension}" >> ${myUnit}.txt
+                    ${FLUKA}/flutil/${exeMerge} < ${myUnit}.txt > ${myUnit}.log 2>&1
+                fi
                 rm ${myUnit}.*            
             done
         fi
