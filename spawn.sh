@@ -6,9 +6,9 @@ jobFile=job_FLUKA.sh
 nPrims=""
 myUnStats=1E6
 origDir=.
-scorings="RESNUCLE,USRBIN,USRBDX,USRTRACK"
-seedMin=1
-seedMax=10
+scorings="RESNUCLE,USRBIN,USRBDX,USRTRACK,USRYIELD"
+seedMin=0
+seedMax=9
 wherePST="run_%05i"
 whereGM="run_?????"
 # what to do
@@ -19,18 +19,26 @@ lGrepStats=false
 lStop=false
 lMerge=false
 lClean=false
-# hand-made queueing system
-lQueue=true
+# batch systems:
+# - NONE: run to CPU directly
+# - HMBS: Home Made Batch System (by amereghe, available on github)
+# - HTC: HTCondor
+batchSys=HMBS
+# - home-made batch system
 spoolingPath=`dirname $0`/queueing
+# - HTCondor
+condorSubFile="condor.sub"
 # log file
 logFile=.`basename $0`.log
+# script version
+scriptVer="1.1"
 
 currDir=$PWD
 # use "." as floating-point separator
 export LC_NUMERIC="en_US.UTF-8"
 
 # log terminal line command
-echo "`date +"[%Y-%m-%d %H:%M:%S]"` $0 $*" >> ${logFile}
+echo "`date +"[%Y-%m-%d %H:%M:%S]"` ==> ver ${scriptVer} <== $0 $*" >> ${logFile}
 
 # ==============================================================================
 # FUNCTIONs
@@ -46,6 +54,9 @@ how_to_use() {
 cat <<EOF
 
        ${script_name} [actions] [options]
+
+                   ==> Version number ${scriptVer} <==
+
        Script for performing repetitive operations on parallel jobs, i.e.
          identical simulations different ony by the starting seed.
        For the time being, only for FLUKA simulations.
@@ -69,7 +80,7 @@ cat <<EOF
                       -c <caseDir>   (mandatory)
 		      -i <inputFile> (mandatory)
 
-        example: /mnt/DATA/homeMadeBatchSys/spawn.sh -C -c P_W -i XPRcolli.inp
+        example: /mnt/DATA/homeMadeBatchSys/${script_name} -C -c P_W -i XPRcolli.inp
 
        -E  expand:    to prepare further run clones in the specified study folder;
                       the folder must have been already created by a previous -P
@@ -92,7 +103,7 @@ cat <<EOF
        -H  help:      to print this help
                       available also as -h
 
-        example: /mnt/DATA/homeMadeBatchSys/spawn.sh -H
+        example: /mnt/DATA/homeMadeBatchSys/${script_name} -H
 
        -M  merge:     to merge results saved in binary files.
                       available options:
@@ -108,6 +119,7 @@ cat <<EOF
                       to add statistics to an existing study case, please see the
                         -E action;
                       available options:
+                      -b <batchSys>  (optional)
                       -c <caseDir>   (mandatory)
 		      -i <inputFile> (mandatory)
 		      -j <jobFile>   (optional)
@@ -118,6 +130,7 @@ cat <<EOF
 
        -S  submit:    to submit jobs;
                       available options:
+                      -b <batchSys>  (optional)
                       -c <caseDir>   (mandatory)
 		      -j <jobFile>   (optional)
 		      -m <seedMin>   (optional)
@@ -134,6 +147,9 @@ cat <<EOF
 
 
        options:
+
+       -b <batchSys>  batch system to be used for crunching jobs
+       	  	      --> default: ${batchSys};
 
        -c <caseDir>   sub-folder containing the study case
        	  	      --> NO defaults!
@@ -181,8 +197,11 @@ EOF
 # ==============================================================================
 
 # get options
-while getopts  ":Cc:EGHhi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
+while getopts  ":b:Cc:EGHhi:j:Mm:n:o:Pp:Ss:Tu:w:" opt ; do
   case $opt in
+    b)
+      batchSys=$OPTARG
+      ;;
     C)
       lClean=true
       ;;
@@ -270,7 +289,15 @@ if ${lGrepStats} ; then
     if [ ! -d ${caseDir} ] ; then die "case folder does NOT exist!" ; fi
 fi
 if ${lSubmit} ; then
-    if [ ! -d ${caseDir} ] ; then die "case folder does NOT exist!" ; fi
+    if ! ${lPrepare} ; then
+        # in case lSubmit AND lPrepare are issued at the same time, do not check
+        #    existence of caseDir folder, since it will be created
+        if [ ! -d ${caseDir} ] ; then die "case folder does NOT exist!" ; fi
+    fi
+    if [ -z "${batchSys}" ] ; then die "batch system NOT declared!" ; fi
+    if [ "${batchSys}" != "NONE" ] && [ "${batchSys}" != "HMBS" ] && [ "${batchSys}" != "HTC" ] ; then
+        die "batch system NOT recognised: ${batchSys}!"
+    fi
 fi
 if ${lMerge} ; then
     # mandatory options are there
@@ -286,6 +313,7 @@ if ${lClean} ; then
 fi
 if ${lStop} ; then
     if [ ! -d ${caseDir} ] ; then die "case folder does NOT exist!" ; fi
+    if [ "${batchSys}" == "HTC" ] ; then die "Cannot gently stop simulations on HTCondor!" ; fi
 fi
 # common options
 # - where are defined
@@ -300,7 +328,7 @@ fi
 if ${lPrepare} ; then
     echo ""
     # prepare study dir
-    echo " preparing jobs of study ${caseDir} ..."
+    echo " preparing jobs of study ${caseDir} for batch system ${batchSys} ..."
     if [ -d ${caseDir} ] ; then
         echo " ...study folder ${caseDir} already exists! updating files..."
     else
@@ -311,6 +339,10 @@ if ${lPrepare} ; then
     cp ${inputFile} ${jobFile} ${currDir}/${caseDir}
     # update number of primaries
     sed -i "s/^START.*/START     `printf "%10.1f" "${nPrims}"`/g" ${currDir}/${caseDir}/${inputFile}
+    if [ "${batchSys}" == "HTC" ] ; then
+        cp ${condorSubFile} ${caseDir}
+        sed -i "s/^executable.*/executable = ${jobFile}/g" ${condorSubFile}
+    fi
     cd - > /dev/null 2>&1
 fi
 
@@ -319,6 +351,9 @@ if ${lPrepare} || ${lExpand} ; then
     echo " creating ${nJobs} job(s) for study ${caseDir} ..."
     # final steps of preparation (a folder per seed)
     cd ${caseDir}
+    if [ "${batchSys}" == "HTC" ] ; then
+        [ ! -f  HTCjobList.txt ] || rm HTCjobList.txt
+    fi
     for ((iSeed=${seedMin}; iSeed<=${seedMax}; iSeed++ )) ; do 
         echo " ...preparing seed ${iSeed}..."
         dirNum=`printf "${wherePST}" "${iSeed}"`
@@ -332,31 +367,44 @@ if ${lPrepare} || ${lExpand} ; then
         sed -i "s/^RANDOMIZ.*/RANDOMIZ         1.0`printf "%10.1f" "${iSeed}"`/g" ${dirNum}/${inputFile}
         # number of primaries
         sed -i "s/^START.*/START     `printf "%10.1f" "${nPrims}"`/g" ${dirNum}/${inputFile}
+        if [ "${batchSys}" == "HMBS" ] ; then
+            currJobFile=job_${caseDir}_${dirNum}_`date "+%Y-%m-%d_%H-%M-%S"`.sh
+            cat > ${dirNum}/${currJobFile} <<EOF
+#!/bin/bash
+cd ${PWD}/${caseDir}/${dirNum}
+./${jobFile} > ${jobFile}.log 2>&1
+EOF
+            chmod +x ${dirNum}/${currJobFile}
+        elif [ "${batchSys}" == "HTC" ] ; then
+            echo ${dirNum} >> HTCjobList.txt
+            rm ${dirNum}/${condorSubFile}
+        fi
     done
+    if [ "${batchSys}" == "HTC" ] ; then
+        sed -i "s/^JobBatchName.*/JobBatchName = \"${caseDir}\"/g" ${condorSubFile}
+    fi
     cd - > /dev/null 2>&1
 fi
 
 if ${lSubmit} ; then
     echo ""
     echo " submitting jobs of study ${caseDir} ..."
-    for ((iSeed=${seedMin}; iSeed<=${seedMax}; iSeed++ )) ; do
-        echo " ...submitting seed ${iSeed}..."
-        dirNum=`printf "${wherePST}" "${iSeed}"`
-        if ${lQueue} ; then
-            currJobFile=job_${caseDir}_${dirNum}_`date "+%Y-%m-%d_%H-%M-%S"`.sh
-            cat > ${currJobFile} <<EOF
-#!/bin/bash
-cd ${PWD}/${caseDir}/${dirNum}
-./${jobFile} > ${jobFile}.log 2>&1
-EOF
-            chmod +x ${currJobFile}
-            mv ${currJobFile} ${spoolingPath}
-        else
-            cd ${caseDir}/${dirNum}
-            ./${jobFile} > ${jobFile}.log 2>&1 &
-            cd - > /dev/null 2>&1
-        fi
-    done
+    if [ "${batchSys}" == "HTC" ] ; then
+        echo " ...submission to HTCondor must proceed with condor_submit command run by the user!"
+    else
+        for ((iSeed=${seedMin}; iSeed<=${seedMax}; iSeed++ )) ; do
+            echo " ...submitting seed ${iSeed}..."
+            dirNum=`printf "${wherePST}" "${iSeed}"`
+            if [ "${batchSys}" == "HMBS" ] ; then
+                currJobFile=`ls -1tr ${caseDir}/${dirNum}/job_${caseDir}_${dirNum}_*.sh | tail -1`
+                mv ${currJobFile} ${spoolingPath}
+            elif [ "${batchSys}" == "NONE" ] ; then
+                cd ${caseDir}/${dirNum}
+                ./${jobFile} > ${jobFile}.log 2>&1 &
+                cd - > /dev/null 2>&1
+            fi
+        done
+    fi
 fi
 
 if ${lGrepStats} ; then
